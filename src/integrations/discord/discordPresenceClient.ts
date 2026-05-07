@@ -38,7 +38,9 @@ export class DiscordPresenceClient {
   public async setTrack(track: TrackInfo, artworkUrl?: string | null): Promise<boolean> {
     const trackLabel = `${track.title} - ${track.artist}`;
     const shouldSetTimestamps =
-      track.status === 'playing' && track.durationSeconds > 0 && track.positionSeconds >= 0;
+      (track.status === 'playing' || track.status === 'paused') &&
+      track.durationSeconds > 0 &&
+      track.positionSeconds >= 0;
     const timestamps: { start?: number; end?: number } = shouldSetTimestamps
       ? (() => {
           const now = Date.now();
