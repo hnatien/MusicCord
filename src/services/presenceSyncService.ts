@@ -2,6 +2,7 @@ import type { AppConfig } from '../config/env.js';
 import { findArtworkUrl } from '../integrations/itunes/artworkResolver.js';
 import { getCurrentTrack } from '../integrations/apple-music/appleMusicClient.js';
 import { DiscordPresenceClient } from '../integrations/discord/discordPresenceClient.js';
+import { logger } from '../utils/logger.js';
 
 const sleep = async (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -21,10 +22,7 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
       await presence.connect();
       break;
     } catch (error) {
-      console.error(
-        'Discord IPC connect failed. Ensure Discord desktop is running and logged in. Retrying in 3s...',
-        error
-      );
+      logger.error('sync', 'Discord IPC connect failed, retry in 3s', error);
       await sleep(3000);
     }
   }
@@ -42,7 +40,7 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
           lastKey = 'none';
           usingDynamicArtwork = false;
           lastArtworkRetryAt = 0;
-          console.log('Presence cleared');
+          logger.info('sync', 'Presence cleared');
         }
         return;
       }
@@ -57,16 +55,13 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
         now - lastArtworkRetryAt >= ARTWORK_RETRY_INTERVAL_MS;
 
       if (trackChanged || shouldRetryArtwork) {
-        if (trackChanged) {
-          console.log(`[sync][track] Changed to ${track.title} - ${track.artist} (${track.status})`);
-        }
         if (shouldRetryArtwork) {
           lastArtworkRetryAt = now;
-          console.log(`[artwork] Retrying dynamic artwork: ${track.title} - ${track.artist}`);
+          logger.info('artwork', `Retry lookup: ${track.title} - ${track.artist}`);
         }
 
         if (!config.ENABLE_DYNAMIC_ARTWORK) {
-          console.log('[artwork][skip] ENABLE_DYNAMIC_ARTWORK=false, using fallback only');
+          logger.info('artwork', 'Dynamic artwork disabled, use fallback');
         }
         const artworkUrl = config.ENABLE_DYNAMIC_ARTWORK ? await findArtworkUrl(track) : null;
         const appliedDynamicArtwork = await presence.setTrack(track, artworkUrl);
@@ -75,13 +70,13 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
         lastKey = currentKey;
 
         if (appliedDynamicArtwork) {
-          console.log(`Presence updated with dynamic artwork: ${track.title} - ${track.artist}`);
+          logger.info('sync', `Presence updated (dynamic): ${track.title} - ${track.artist}`);
         } else {
-          console.log(`Presence updated with fallback artwork: ${track.title} - ${track.artist}`);
+          logger.info('sync', `Presence updated (fallback): ${track.title} - ${track.artist}`);
         }
       }
     } catch (error) {
-      console.error('Tick failed', error);
+      logger.error('sync', 'Tick failed', error);
     }
   };
 

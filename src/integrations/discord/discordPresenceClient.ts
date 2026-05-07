@@ -1,5 +1,6 @@
 import RPC from 'discord-rpc';
 import type { TrackInfo } from '../../domain/music/types.js';
+import { logger } from '../../utils/logger.js';
 
 type RawActivity = Readonly<{
   type: 0 | 2 | 3 | 5;
@@ -61,7 +62,6 @@ export class DiscordPresenceClient {
 
     if (artworkUrl) {
       try {
-        console.log(`[presence][set] Trying dynamic artwork URL for ${trackLabel}: ${artworkUrl}`);
         await this.setRawActivity({
           ...baseActivity,
           assets: {
@@ -69,20 +69,13 @@ export class DiscordPresenceClient {
             large_text: track.album || 'Apple Music'
           }
         });
-        console.log(`[presence][success] Dynamic artwork applied for ${trackLabel}`);
         return true;
       } catch (error) {
-        console.warn(
-          `[presence][error] Discord rejected direct artwork URL for ${trackLabel}, retrying with mp: prefix`,
-          error
-        );
+        logger.warn('presence', `Dynamic artwork rejected, retry mp: ${trackLabel}`, error);
       }
 
       try {
         const mediaProxyArtworkUrl = `mp:${artworkUrl}`;
-        console.log(
-          `[presence][set] Trying dynamic artwork via media proxy for ${trackLabel}: ${mediaProxyArtworkUrl}`
-        );
         await this.setRawActivity({
           ...baseActivity,
           assets: {
@@ -90,21 +83,13 @@ export class DiscordPresenceClient {
             large_text: track.album || 'Apple Music'
           }
         });
-        console.log(`[presence][success] Dynamic artwork applied via media proxy for ${trackLabel}`);
         return true;
       } catch (error) {
-        console.warn(
-          `[presence][error] Discord rejected media proxy artwork for ${trackLabel}`,
-          error
-        );
+        logger.warn('presence', `MP artwork rejected: ${trackLabel}`, error);
       }
-    } else {
-      console.log(`[presence][skip] No dynamic artwork URL for ${trackLabel}, using fallback`);
     }
 
     const fallbackImageKey = this.appleMusicAssetKey.trim();
-    const fallbackLabel = fallbackImageKey || '(none)';
-    console.log(`[presence][set] Applying fallback artwork for ${trackLabel}: ${fallbackLabel}`);
     await this.setRawActivity(
       fallbackImageKey
         ? {
@@ -116,7 +101,6 @@ export class DiscordPresenceClient {
           }
         : baseActivity
     );
-    console.log(`[presence][success] Fallback presence applied for ${trackLabel}`);
 
     return false;
   }
