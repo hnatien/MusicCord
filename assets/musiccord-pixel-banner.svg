@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">MusicCord Pixel Banner</title>
+  <desc id="desc">Pixel-art style banner with the app name MusicCord.</desc>
+  <defs>
+    <style>
+      .px { shape-rendering: crispEdges; }
+      .label {
+        font-family: "SF Pro Display", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-size: 110px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        fill: #ffeaf2;
+      }
+    </style>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="55%" stop-color="#15131a"/>
+      <stop offset="100%" stop-color="#1f1820"/>
+    </linearGradient>
+  </defs>
+
+  <rect class="px" width="1200" height="320" fill="url(#bg)"/>
+  <rect class="px" x="24" y="24" width="1152" height="272" fill="none" stroke="#ff4d7a" stroke-width="8"/>
+
+  <text x="600" y="202" text-anchor="middle" class="label">MusicCord</text>
+</svg>
