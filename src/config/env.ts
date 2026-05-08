@@ -11,7 +11,7 @@ const booleanFromEnv = z
 
 const schema = z.object({
   DISCORD_CLIENT_ID: z.string().min(1).default(DEFAULT_DISCORD_CLIENT_ID),
-  POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+  POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
   DISCORD_APPLE_MUSIC_ASSET_KEY: z
     .string()
     .trim()

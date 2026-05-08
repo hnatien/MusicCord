@@ -88,6 +88,23 @@ describe('buildTrackActivity', () => {
 
     vi.useRealTimers();
   });
+
+  it('shows paused text before the title and omits timestamps so Discord does not keep advancing progress', () => {
+    const track: TrackInfo = {
+      title: 'Song Name',
+      artist: 'Artist Name',
+      album: 'Album Name',
+      status: 'paused',
+      durationSeconds: 180,
+      positionSeconds: 30
+    };
+
+    expect(buildTrackActivity(track)).toMatchObject({
+      details: '[pause] Song Name',
+      state: 'by Artist Name'
+    });
+    expect(buildTrackActivity(track)).not.toHaveProperty('timestamps');
+  });
 });
 
 describe('buildTrackAssets', () => {

@@ -114,7 +114,7 @@ Optional: create `.env` only if you want to override the packaged defaults:
 
 ```env
 DISCORD_CLIENT_ID=1501873458127048745
-POLL_INTERVAL_MS=15000
+POLL_INTERVAL_MS=1000
 DISCORD_APPLE_MUSIC_ASSET_KEY=apple-music-svgrepo-com
 ENABLE_DYNAMIC_ARTWORK=true
 ```
@@ -137,7 +137,7 @@ npm start
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `DISCORD_CLIENT_ID` | No | `1501873458127048745` | Discord application Client ID used for Rich Presence. Override only if you want to use your own Discord app. |
-| `POLL_INTERVAL_MS` | No | `15000` | Apple Music polling interval in milliseconds. |
+| `POLL_INTERVAL_MS` | No | `1000` | Apple Music polling interval in milliseconds. Discord Rich Presence updates are throttled separately to at most once every 15 seconds. |
 | `DISCORD_APPLE_MUSIC_ASSET_KEY` | No | `apple-music-svgrepo-com` | Apple Music logo asset key from Discord Rich Presence assets. Used as the small logo with album artwork and as fallback large artwork. Use an empty value to disable the static asset. |
 | `ENABLE_DYNAMIC_ARTWORK` | No | `true` | Looks up album artwork through the iTunes Search API before falling back to the static asset. |
 

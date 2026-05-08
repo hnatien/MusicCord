@@ -9,7 +9,7 @@ describe('loadConfig', () => {
   it('uses packaged defaults when no env file is configured', () => {
     expect(loadConfig({})).toEqual({
       DISCORD_CLIENT_ID: DEFAULT_DISCORD_CLIENT_ID,
-      POLL_INTERVAL_MS: 15000,
+      POLL_INTERVAL_MS: 1000,
       DISCORD_APPLE_MUSIC_ASSET_KEY: DEFAULT_DISCORD_APPLE_MUSIC_ASSET_KEY,
       ENABLE_DYNAMIC_ARTWORK: true
     });

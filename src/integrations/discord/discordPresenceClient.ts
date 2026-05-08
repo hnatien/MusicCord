@@ -50,11 +50,14 @@ const resolveAppleMusicUrl = (track: TrackInfo, appleMusicUrl?: string | null): 
   return buildAppleMusicSearchUrl(track);
 };
 
+const buildTrackDetails = (track: TrackInfo): string => {
+  const titleLine = normalizeDiscordText(track.title, 'Unknown Track');
+  return track.status === 'paused' ? `[pause] ${titleLine}` : titleLine;
+};
+
 export const buildTrackActivity = (track: TrackInfo, appleMusicUrl?: string | null): RawActivity => {
   const shouldSetTimestamps =
-    (track.status === 'playing' || track.status === 'paused') &&
-    track.durationSeconds > 0 &&
-    track.positionSeconds >= 0;
+    track.status === 'playing' && track.durationSeconds > 0 && track.positionSeconds >= 0;
   const timestamps: { start?: number; end?: number } = shouldSetTimestamps
     ? (() => {
         const now = Date.now();
@@ -68,7 +71,7 @@ export const buildTrackActivity = (track: TrackInfo, appleMusicUrl?: string | nu
     type: 2,
     name: 'Apple Music',
     status_display_type: 2,
-    details: normalizeDiscordText(track.title, 'Unknown Track'),
+    details: buildTrackDetails(track),
     state: normalizeDiscordText(`by ${track.artist}`, 'by Unknown Artist'),
     buttons: [{ label: 'Play on Apple Music', url: resolveAppleMusicUrl(track, appleMusicUrl) }],
     ...(timestamps.start || timestamps.end ? { timestamps } : {}),

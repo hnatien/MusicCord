@@ -3,6 +3,8 @@ import { getCurrentTrack } from '../integrations/apple-music/appleMusicClient.js
 import { DiscordPresenceClient } from '../integrations/discord/discordPresenceClient.js';
 import { findTrackMetadata } from '../integrations/itunes/artworkResolver.js';
 import { logger } from '../utils/logger.js';
+import { DiscordUpdateThrottle } from './discordUpdateThrottle.js';
+import type { TrackInfo } from '../domain/music/types.js';
 
 const sleep = async (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -10,6 +12,15 @@ const sleep = async (ms: number): Promise<void> =>
   });
 
 const ARTWORK_RETRY_INTERVAL_MS = 60 * 1000;
+
+type PresenceUpdate =
+  | Readonly<{ kind: 'clear' }>
+  | Readonly<{
+      kind: 'track';
+      track: TrackInfo;
+      artworkUrl: string | null;
+      appleMusicUrl: string | null;
+    }>;
 
 export const startPresenceSync = async (config: AppConfig): Promise<() => Promise<void>> => {
   const presence = new DiscordPresenceClient(
@@ -31,16 +42,47 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
   let usingDynamicArtwork = false;
   let lastArtworkRetryAt = 0;
 
+  const updateThrottle = new DiscordUpdateThrottle<PresenceUpdate>({
+    send: async (update) => {
+      if (update.kind === 'clear') {
+        await presence.clear();
+        logger.info('sync', 'Presence cleared');
+        return;
+      }
+
+      const appliedDynamicArtwork = await presence.setTrack(
+        update.track,
+        update.artworkUrl,
+        update.appleMusicUrl
+      );
+      usingDynamicArtwork = appliedDynamicArtwork;
+
+      if (appliedDynamicArtwork) {
+        logger.info(
+          'sync',
+          `Presence updated (dynamic): ${update.track.title} - ${update.track.artist}`
+        );
+      } else {
+        logger.info(
+          'sync',
+          `Presence updated (fallback): ${update.track.title} - ${update.track.artist}`
+        );
+      }
+    },
+    onError: (error) => {
+      logger.error('sync', 'Discord presence update failed', error);
+    }
+  });
+
   const tick = async (): Promise<void> => {
     try {
       const track = await getCurrentTrack();
       if (!track) {
         if (lastKey !== 'none') {
-          await presence.clear();
+          updateThrottle.schedule({ kind: 'clear' });
           lastKey = 'none';
           usingDynamicArtwork = false;
           lastArtworkRetryAt = 0;
-          logger.info('sync', 'Presence cleared');
         }
         return;
       }
@@ -67,20 +109,14 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
           ? await findTrackMetadata(track)
           : Object.freeze({ artworkUrl: null, appleMusicUrl: null });
         const artworkUrl = metadata.artworkUrl;
-        const appliedDynamicArtwork = await presence.setTrack(
+        updateThrottle.schedule({
+          kind: 'track',
           track,
           artworkUrl,
-          metadata.appleMusicUrl
-        );
-
-        usingDynamicArtwork = appliedDynamicArtwork;
+          appleMusicUrl: metadata.appleMusicUrl
+        });
+        usingDynamicArtwork = Boolean(artworkUrl);
         lastKey = currentKey;
-
-        if (appliedDynamicArtwork) {
-          logger.info('sync', `Presence updated (dynamic): ${track.title} - ${track.artist}`);
-        } else {
-          logger.info('sync', `Presence updated (fallback): ${track.title} - ${track.artist}`);
-        }
       }
     } catch (error) {
       logger.error('sync', 'Tick failed', error);
@@ -94,6 +130,7 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
 
   return async () => {
     clearInterval(timer);
+    updateThrottle.stop();
     await presence.clear();
     presence.destroy();
   };
