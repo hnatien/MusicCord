@@ -18,6 +18,7 @@ Bring Apple Music to Discord Rich Presence on macOS, with track metadata, album 
 - [What It Does](#what-it-does)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
+- [Homebrew Install](#homebrew-install)
 - [Configuration](#configuration)
 - [Discord Asset Setup](#discord-asset-setup)
 - [How It Works](#how-it-works)
@@ -39,25 +40,80 @@ MusicCord is a small local bridge between Apple Music and Discord. It polls the 
 
 - macOS with the Music app installed.
 - Discord desktop app running and logged in.
-- A Discord application Client ID from the [Discord Developer Portal](https://discord.com/developers/applications).
-- Node.js 20 or newer.
+- Homebrew for the easiest install path, or Node.js 20 or newer for local development.
 - Terminal permission to control Music, if macOS prompts for automation access.
 
 ## Quick Start
 
-Install dependencies and create a local environment file:
+For normal users, install and run MusicCord with Homebrew:
 
 ```bash
-cp .env.example .env
+brew tap hnatien/musiccord https://github.com/hnatien/MusicCord
+brew install --HEAD musiccord
+brew services start musiccord
+```
+
+That is enough for the default setup. Keep Discord open, play something in Apple Music, and accept the macOS Automation permission prompt if it appears.
+
+To stop the background service:
+
+```bash
+brew services stop musiccord
+```
+
+To run it in the foreground instead of as a service:
+
+```bash
+musiccord
+```
+
+## Homebrew Install
+
+MusicCord ships with a default Discord application Client ID and fallback asset key, so users do not need to create a Discord Developer Portal app or edit `.env`.
+
+Install:
+
+```bash
+brew tap hnatien/musiccord https://github.com/hnatien/MusicCord
+brew install --HEAD musiccord
+```
+
+Start automatically in the background:
+
+```bash
+brew services start musiccord
+```
+
+Useful commands:
+
+| Command | Purpose |
+| --- | --- |
+| `brew services start musiccord` | Start MusicCord in the background and keep it running. |
+| `brew services stop musiccord` | Stop the background service. |
+| `brew services restart musiccord` | Restart after updating. |
+| `tail -f "$(brew --prefix)/var/log/musiccord.log"` | View service logs. |
+| `brew upgrade --fetch-HEAD musiccord` | Update to the latest commit from the tap. |
+
+The explicit tap URL is used because this repository is named `MusicCord`. If a dedicated `hnatien/homebrew-musiccord` tap is created later, the install command can be shortened to:
+
+```bash
+brew install hnatien/musiccord/musiccord
+```
+
+## Developer Run
+
+Install dependencies:
+
+```bash
 npm install
 ```
 
-Update `.env` with your Discord application details:
+Optional: create `.env` only if you want to override the packaged defaults:
 
 ```env
-DISCORD_CLIENT_ID=your_discord_app_client_id
+DISCORD_CLIENT_ID=1501873458127048745
 POLL_INTERVAL_MS=15000
-DISCORD_APPLE_MUSIC_ASSET_KEY=apple_music
+DISCORD_APPLE_MUSIC_ASSET_KEY=apple-music-svgrepo-com
 ENABLE_DYNAMIC_ARTWORK=true
 ```
 
@@ -78,19 +134,21 @@ npm start
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `DISCORD_CLIENT_ID` | Yes | - | Discord application Client ID used for Rich Presence. |
+| `DISCORD_CLIENT_ID` | No | `1501873458127048745` | Discord application Client ID used for Rich Presence. Override only if you want to use your own Discord app. |
 | `POLL_INTERVAL_MS` | No | `15000` | Apple Music polling interval in milliseconds. |
-| `DISCORD_APPLE_MUSIC_ASSET_KEY` | No | `apple_music` | Fallback large image key from Discord Rich Presence assets. Use an empty value to disable fallback artwork. |
+| `DISCORD_APPLE_MUSIC_ASSET_KEY` | No | `apple-music-svgrepo-com` | Fallback large image key from Discord Rich Presence assets. Use an empty value to disable fallback artwork. |
 | `ENABLE_DYNAMIC_ARTWORK` | No | `true` | Looks up album artwork through the iTunes Search API before falling back to the static asset. |
 
 ## Discord Asset Setup
 
-Dynamic artwork usually gives the best result, but a fallback asset makes the presence stable when Discord rejects a remote image or the artwork lookup misses.
+Most users can skip this section. MusicCord already includes a default Discord application and fallback asset key.
+
+Only do this if you want to use your own Discord application. Dynamic artwork usually gives the best result, but a fallback asset makes the presence stable when Discord rejects a remote image or the artwork lookup misses.
 
 1. Open your app in the [Discord Developer Portal](https://discord.com/developers/applications).
 2. Select `Rich Presence`.
 3. Upload an Apple Music image under app assets.
-4. Set the asset key to `apple_music`, or match the value in `DISCORD_APPLE_MUSIC_ASSET_KEY`.
+4. Set the asset key to `apple-music-svgrepo-com`, or match the value in `DISCORD_APPLE_MUSIC_ASSET_KEY`.
 5. Keep `ENABLE_DYNAMIC_ARTWORK=true` if you want MusicCord to try iTunes artwork first.
 
 ## How It Works
@@ -126,7 +184,7 @@ Playback states:
 | Symptom | Check |
 | --- | --- |
 | `Discord IPC connect failed` | Make sure Discord desktop is open and logged in. |
-| Presence does not appear | Verify `DISCORD_CLIENT_ID`, then restart the dev process after editing `.env`. |
+| Presence does not appear | Make sure Discord desktop is open, then restart with `brew services restart musiccord`. If you use a custom `.env`, verify `DISCORD_CLIENT_ID`. |
 | Apple Music data is missing | Start playback in Music and grant automation permission in macOS Privacy settings if prompted. |
 | Artwork is missing | Confirm network access to `itunes.apple.com`, then verify `DISCORD_APPLE_MUSIC_ASSET_KEY`. |
 | Progress looks stale | Lower `POLL_INTERVAL_MS` for faster updates, or wait for the next poll cycle. |
