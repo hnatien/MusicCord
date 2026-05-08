@@ -1,7 +1,7 @@
 import type { AppConfig } from '../config/env.js';
-import { findArtworkUrl } from '../integrations/itunes/artworkResolver.js';
 import { getCurrentTrack } from '../integrations/apple-music/appleMusicClient.js';
 import { DiscordPresenceClient } from '../integrations/discord/discordPresenceClient.js';
+import { findTrackMetadata } from '../integrations/itunes/artworkResolver.js';
 import { logger } from '../utils/logger.js';
 
 const sleep = async (ms: number): Promise<void> =>
@@ -63,8 +63,15 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
         if (!config.ENABLE_DYNAMIC_ARTWORK) {
           logger.info('artwork', 'Dynamic artwork disabled, use fallback');
         }
-        const artworkUrl = config.ENABLE_DYNAMIC_ARTWORK ? await findArtworkUrl(track) : null;
-        const appliedDynamicArtwork = await presence.setTrack(track, artworkUrl);
+        const metadata = config.ENABLE_DYNAMIC_ARTWORK
+          ? await findTrackMetadata(track)
+          : Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+        const artworkUrl = metadata.artworkUrl;
+        const appliedDynamicArtwork = await presence.setTrack(
+          track,
+          artworkUrl,
+          metadata.appleMusicUrl
+        );
 
         usingDynamicArtwork = appliedDynamicArtwork;
         lastKey = currentKey;

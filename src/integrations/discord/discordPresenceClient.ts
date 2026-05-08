@@ -20,7 +20,35 @@ type RawActivity = Readonly<{
   instance: boolean;
 }>;
 
-export const buildTrackActivity = (track: TrackInfo): RawActivity => {
+const normalizeDiscordText = (value: string, fallback: string): string => {
+  const trimmed = value.trim();
+  const safeValue = trimmed || fallback;
+  return safeValue.length >= 2 ? safeValue : `${safeValue} `;
+};
+
+const buildAppleMusicSearchUrl = (track: TrackInfo): string => {
+  const term = encodeURIComponent(`${track.title} ${track.artist}`);
+  return `https://music.apple.com/search?term=${term}`;
+};
+
+const resolveAppleMusicUrl = (track: TrackInfo, appleMusicUrl?: string | null): string => {
+  if (!appleMusicUrl) {
+    return buildAppleMusicSearchUrl(track);
+  }
+
+  try {
+    const parsedUrl = new URL(appleMusicUrl);
+    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+      return parsedUrl.toString();
+    }
+  } catch {
+    return buildAppleMusicSearchUrl(track);
+  }
+
+  return buildAppleMusicSearchUrl(track);
+};
+
+export const buildTrackActivity = (track: TrackInfo, appleMusicUrl?: string | null): RawActivity => {
   const shouldSetTimestamps =
     (track.status === 'playing' || track.status === 'paused') &&
     track.durationSeconds > 0 &&
@@ -38,9 +66,9 @@ export const buildTrackActivity = (track: TrackInfo): RawActivity => {
     type: 2,
     name: 'Apple Music',
     status_display_type: 2,
-    details: track.title,
-    state: `by ${track.artist}`,
-    buttons: [{ label: 'Open Apple Music', url: 'https://music.apple.com' }],
+    details: normalizeDiscordText(track.title, 'Unknown Track'),
+    state: normalizeDiscordText(`by ${track.artist}`, 'by Unknown Artist'),
+    buttons: [{ label: 'Play on Apple Music', url: resolveAppleMusicUrl(track, appleMusicUrl) }],
     ...(timestamps.start || timestamps.end ? { timestamps } : {}),
     instance: false
   };
@@ -64,9 +92,13 @@ export class DiscordPresenceClient {
     });
   }
 
-  public async setTrack(track: TrackInfo, artworkUrl?: string | null): Promise<boolean> {
+  public async setTrack(
+    track: TrackInfo,
+    artworkUrl?: string | null,
+    appleMusicUrl?: string | null
+  ): Promise<boolean> {
     const trackLabel = `${track.title} - ${track.artist}`;
-    const baseActivity = buildTrackActivity(track);
+    const baseActivity = buildTrackActivity(track, appleMusicUrl);
 
     if (artworkUrl) {
       try {

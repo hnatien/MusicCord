@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __testables__,
   findArtworkUrl,
+  findTrackMetadata,
   toHighResArtworkUrl
 } from '../../../src/integrations/itunes/artworkResolver.js';
 
@@ -41,7 +42,12 @@ describe('findArtworkUrl cache behavior', () => {
         ok: true,
         json: async () => ({
           resultCount: 1,
-          results: [{ artworkUrl100: 'https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg' }]
+          results: [
+            {
+              artworkUrl100: 'https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg',
+              trackViewUrl: 'https://music.apple.com/us/album/song/1?i=2'
+            }
+          ]
         })
       } as Response);
 
@@ -57,5 +63,37 @@ describe('findArtworkUrl cache behavior', () => {
       'https://is1-ssl.mzstatic.com/image/thumb/Music/512x512bb.jpg'
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns artwork and Apple Music URL metadata', async () => {
+    const track = {
+      title: 'Song',
+      artist: 'Artist',
+      album: 'Album',
+      status: 'playing' as const,
+      durationSeconds: 200,
+      positionSeconds: 10
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          resultCount: 1,
+          results: [
+            {
+              artworkUrl100: 'https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg',
+              trackViewUrl: 'https://music.apple.com/us/album/song/1?i=2'
+            }
+          ]
+        })
+      } as Response)
+    );
+
+    await expect(findTrackMetadata(track)).resolves.toEqual({
+      artworkUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/512x512bb.jpg',
+      appleMusicUrl: 'https://music.apple.com/us/album/song/1?i=2'
+    });
   });
 });

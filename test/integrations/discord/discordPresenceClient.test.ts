@@ -19,7 +19,49 @@ describe('buildTrackActivity', () => {
       status_display_type: 2,
       details: 'Song Name',
       state: 'by Artist Name',
+      buttons: [
+        {
+          label: 'Play on Apple Music',
+          url: 'https://music.apple.com/search?term=Song%20Name%20Artist%20Name'
+        }
+      ],
       instance: false
+    });
+  });
+
+  it('uses a resolved Apple Music track URL for the button', () => {
+    const track: TrackInfo = {
+      title: 'Song Name',
+      artist: 'Artist Name',
+      album: 'Album Name',
+      status: 'playing',
+      durationSeconds: 180,
+      positionSeconds: 30
+    };
+
+    expect(
+      buildTrackActivity(track, 'https://music.apple.com/us/album/song-name/123?i=456').buttons
+    ).toEqual([
+      {
+        label: 'Play on Apple Music',
+        url: 'https://music.apple.com/us/album/song-name/123?i=456'
+      }
+    ]);
+  });
+
+  it('pads one-character titles so Discord accepts the activity details', () => {
+    const track: TrackInfo = {
+      title: '瞬',
+      artist: 'Zheng Runze',
+      album: 'Album Name',
+      status: 'playing',
+      durationSeconds: 180,
+      positionSeconds: 30
+    };
+
+    expect(buildTrackActivity(track)).toMatchObject({
+      details: '瞬 ',
+      state: 'by Zheng Runze'
     });
   });
 
