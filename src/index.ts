@@ -5,10 +5,14 @@ import { logger } from './utils/logger.js';
 
 const HELP_TEXT = `MusicCord
 
-Apple Music Rich Presence for Discord on macOS.
+Apple Music Rich Presence for Discord on macOS and Windows.
 
 Usage:
   musiccord
+
+Supported players:
+  macOS Music app
+  Apple Music app for Windows
 
 Environment overrides:
   DISCORD_CLIENT_ID

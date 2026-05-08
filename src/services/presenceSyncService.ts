@@ -1,5 +1,5 @@
 import type { AppConfig } from '../config/env.js';
-import { getCurrentTrack } from '../integrations/apple-music/appleMusicClient.js';
+import { createPlatformPlaybackClient } from '../integrations/apple-music/platformPlaybackClient.js';
 import { DiscordPresenceClient } from '../integrations/discord/discordPresenceClient.js';
 import { findTrackMetadata } from '../integrations/itunes/artworkResolver.js';
 import { logger } from '../utils/logger.js';
@@ -23,6 +23,7 @@ type PresenceUpdate =
     }>;
 
 export const startPresenceSync = async (config: AppConfig): Promise<() => Promise<void>> => {
+  const playback = createPlatformPlaybackClient();
   const presence = new DiscordPresenceClient(
     config.DISCORD_CLIENT_ID,
     config.DISCORD_APPLE_MUSIC_ASSET_KEY
@@ -76,7 +77,7 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
 
   const tick = async (): Promise<void> => {
     try {
-      const track = await getCurrentTrack();
+      const track = await playback.getCurrentTrack();
       if (!track) {
         if (lastKey !== 'none') {
           updateThrottle.schedule({ kind: 'clear' });

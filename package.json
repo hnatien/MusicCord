@@ -1,6 +1,6 @@
 {
   "name": "musiccord",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "",
   "main": "dist/index.js",
   "bin": {
@@ -17,6 +17,9 @@
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
+    "build:windows-helper": "dotnet publish assets/windows-media-helper/MusicCord.WindowsMedia/MusicCord.WindowsMedia.csproj -c Release -o assets/windows-media-helper/publish",
+    "tray": "npm run build && electron dist/tray/index.js",
+    "package:win:tray": "node scripts/package-win-tray.mjs",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "lint": "eslint . --ext .ts"
@@ -35,6 +38,8 @@
     "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
     "eslint": "^10.3.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",

@@ -18,3 +18,10 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 .vitest/
+.cache/
+release/
+release-tray/
+
+assets/windows-media-helper/**/bin/
+assets/windows-media-helper/**/obj/
+assets/windows-media-helper/publish/

@@ -1,5 +1,5 @@
 class Musiccord < Formula
-  desc "Apple Music Rich Presence for Discord on macOS"
+  desc "Apple Music Rich Presence for Discord"
   homepage "https://github.com/hnatien/MusicCord"
   head "https://github.com/hnatien/MusicCord.git", branch: "main"
 

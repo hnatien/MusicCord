@@ -2,12 +2,12 @@
 
 # MusicCord
 
-Bring Apple Music to Discord Rich Presence on macOS, with track metadata, album artwork, and playback progress that stays visible while music is paused.
+Bring Apple Music to Discord Rich Presence on macOS and Windows, with track metadata, album artwork, and playback progress that stays visible while music is paused.
 
 <p>
   <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white">
-  <img alt="macOS Apple Music" src="https://img.shields.io/badge/macOS-Apple%20Music-FA243C?logo=applemusic&logoColor=white">
+  <img alt="macOS and Windows Apple Music" src="https://img.shields.io/badge/macOS%20%2B%20Windows-Apple%20Music-FA243C?logo=applemusic&logoColor=white">
   <img alt="Discord RPC" src="https://img.shields.io/badge/Discord-Rich%20Presence-5865F2?logo=discord&logoColor=white">
   <img alt="Tests" src="https://img.shields.io/badge/tests-vitest-6E9F18?logo=vitest&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-ISC-blue">
@@ -28,7 +28,7 @@ Bring Apple Music to Discord Rich Presence on macOS, with track metadata, album 
 
 ## What It Does
 
-MusicCord is a small local bridge between Apple Music and Discord. It polls the macOS Music app with AppleScript, resolves artwork through the iTunes Search API when enabled, and publishes the current track to Discord over local IPC.
+MusicCord is a small local bridge between Apple Music and Discord. It polls the macOS Music app with AppleScript or the Windows Apple Music media session with Windows media controls, resolves artwork through the iTunes Search API when enabled, and publishes the current track to Discord over local IPC.
 
 - Shows song title, artist, album artwork, and progress in Discord Rich Presence.
 - Keeps the progress bar available for both playing and paused tracks.
@@ -38,7 +38,7 @@ MusicCord is a small local bridge between Apple Music and Discord. It polls the 
 
 ## Requirements
 
-- macOS with the Music app installed.
+- macOS with the Music app installed, or Windows 10 1809+ / Windows 11 with Apple Music for Windows installed.
 - Discord desktop app running and logged in.
 - Homebrew for the easiest install path, or Node.js 20 or newer for local development.
 - Terminal permission to control Music, if macOS prompts for automation access.
@@ -68,6 +68,8 @@ musiccord
 ```
 
 ## Homebrew Install
+
+Homebrew is the macOS install path. Windows users can run MusicCord with Node.js from a local checkout.
 
 MusicCord ships with a default Discord application Client ID and fallback asset key, so users do not need to create a Discord Developer Portal app or edit `.env`.
 
@@ -110,6 +112,14 @@ Install dependencies:
 npm install
 ```
 
+On Windows, install from a terminal that has Node.js 20 or newer and the .NET SDK available. For faster startup, build the Windows media helper once:
+
+```powershell
+npm run build:windows-helper
+```
+
+If you skip that step, MusicCord runs the helper from source with `dotnet run`.
+
 Optional: create `.env` only if you want to override the packaged defaults:
 
 ```env
@@ -125,12 +135,26 @@ Run MusicCord in development:
 npm run dev
 ```
 
+Run the tray app in development:
+
+```powershell
+npm run tray
+```
+
 For a compiled run:
 
 ```bash
 npm run build
 npm start
 ```
+
+Build a portable Windows tray executable:
+
+```powershell
+npm run package:win:tray
+```
+
+The generated executable is written to `release-tray/MusicCord.exe`.
 
 ## Configuration
 
@@ -157,7 +181,7 @@ Only do this if you want to use your own Discord application. Dynamic artwork us
 
 ```text
 Apple Music
-  -> AppleScript reads playback state, track metadata, duration, and position
+  -> AppleScript on macOS or Windows media controls reads playback state, track metadata, duration, and position
   -> MusicCord validates environment config and normalizes track data
   -> iTunes Search API resolves album artwork when enabled
   -> Discord RPC publishes Rich Presence over local IPC
@@ -176,7 +200,9 @@ Playback states:
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Run from TypeScript source with `tsx`. |
+| `npm run tray` | Run the Electron tray app. |
 | `npm run build` | Compile TypeScript into `dist/`. |
+| `npm run package:win:tray` | Build the portable Windows tray executable. |
 | `npm start` | Run the compiled app from `dist/index.js`. |
 | `npm test` | Run the Vitest test suite. |
 | `npm run lint` | Lint TypeScript with ESLint. |
@@ -187,7 +213,8 @@ Playback states:
 | --- | --- |
 | `Discord IPC connect failed` | Make sure Discord desktop is open and logged in. |
 | Presence does not appear | Make sure Discord desktop is open, then restart with `brew services restart musiccord`. If you use a custom `.env`, verify `DISCORD_CLIENT_ID`. |
-| Apple Music data is missing | Start playback in Music and grant automation permission in macOS Privacy settings if prompted. |
+| Apple Music data is missing on macOS | Start playback in Music and grant automation permission in macOS Privacy settings if prompted. |
+| Apple Music data is missing on Windows | Start playback in Apple Music for Windows, then confirm `dotnet --info` works and run `npm run build:windows-helper`. |
 | Artwork is missing | Confirm network access to `itunes.apple.com`, then verify `DISCORD_APPLE_MUSIC_ASSET_KEY`. |
 | Progress looks stale | Lower `POLL_INTERVAL_MS` for faster updates, or wait for the next poll cycle. |
 

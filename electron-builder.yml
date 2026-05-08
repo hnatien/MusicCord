@@ -1,0 +1,22 @@
+appId: com.musiccord.app
+productName: MusicCord
+artifactName: MusicCord.${ext}
+npmRebuild: false
+directories:
+  output: release-tray
+files:
+  - dist/**/*
+  - assets/**/*
+  - package.json
+extraMetadata:
+  main: dist/tray/index.js
+asarUnpack:
+  - assets/musiccord-tray.ico
+  - assets/windows-media-helper/publish/**/*
+win:
+  icon: assets/musiccord-tray.ico
+  signAndEditExecutable: false
+  target:
+    - target: portable
+      arch:
+        - x64
