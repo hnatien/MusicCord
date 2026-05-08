@@ -4,6 +4,8 @@ import { logger } from '../../utils/logger.js';
 
 type RawActivity = Readonly<{
   type: 0 | 2 | 3 | 5;
+  name: string;
+  status_display_type?: 0 | 1 | 2;
   details: string;
   state: string;
   timestamps?: Readonly<{
@@ -17,6 +19,32 @@ type RawActivity = Readonly<{
   buttons?: ReadonlyArray<Readonly<{ label: string; url: string }>>;
   instance: boolean;
 }>;
+
+export const buildTrackActivity = (track: TrackInfo): RawActivity => {
+  const shouldSetTimestamps =
+    (track.status === 'playing' || track.status === 'paused') &&
+    track.durationSeconds > 0 &&
+    track.positionSeconds >= 0;
+  const timestamps: { start?: number; end?: number } = shouldSetTimestamps
+    ? (() => {
+        const now = Date.now();
+        const start = Math.round(now - track.positionSeconds * 1000);
+        const end = Math.round(start + track.durationSeconds * 1000);
+        return { start, end };
+      })()
+    : {};
+
+  return {
+    type: 2,
+    name: 'Apple Music',
+    status_display_type: 2,
+    details: track.title,
+    state: `by ${track.artist}`,
+    buttons: [{ label: 'Open Apple Music', url: 'https://music.apple.com' }],
+    ...(timestamps.start || timestamps.end ? { timestamps } : {}),
+    instance: false
+  };
+};
 
 export class DiscordPresenceClient {
   private readonly client: RPC.Client;
@@ -38,27 +66,7 @@ export class DiscordPresenceClient {
 
   public async setTrack(track: TrackInfo, artworkUrl?: string | null): Promise<boolean> {
     const trackLabel = `${track.title} - ${track.artist}`;
-    const shouldSetTimestamps =
-      (track.status === 'playing' || track.status === 'paused') &&
-      track.durationSeconds > 0 &&
-      track.positionSeconds >= 0;
-    const timestamps: { start?: number; end?: number } = shouldSetTimestamps
-      ? (() => {
-          const now = Date.now();
-          const start = Math.round(now - track.positionSeconds * 1000);
-          const end = Math.round(start + track.durationSeconds * 1000);
-          return { start, end };
-        })()
-      : {};
-    const state = `by ${track.artist}`;
-    const baseActivity: RawActivity = {
-      type: 2,
-      details: track.title,
-      state,
-      buttons: [{ label: 'Open Apple Music', url: 'https://music.apple.com' }],
-      ...(timestamps.start || timestamps.end ? { timestamps } : {}),
-      instance: false
-    };
+    const baseActivity = buildTrackActivity(track);
 
     if (artworkUrl) {
       try {

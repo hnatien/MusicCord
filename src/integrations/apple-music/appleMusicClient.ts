@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import type { PlaybackStatus, TrackInfo } from '../../domain/music/types.js';
 
 const execFileAsync = promisify(execFile);
+const STOPPED_OUTPUT = 'stopped||||||||||';
 
 const parseLocaleNumber = (value: string): number => {
   const trimmed = value.trim();
@@ -25,21 +26,35 @@ tell application "Music"
         set normalizedState to "playing"
       end if
 
-      set trackName to name of current track
-      set trackArtist to artist of current track
-      set trackAlbum to album of current track
-      set durationSec to (duration of current track)
-      set playerPos to (player position)
+      try
+        set trackName to name of current track
+        set trackArtist to artist of current track
+        set trackAlbum to album of current track
+        set durationSec to (duration of current track)
+        set playerPos to (player position)
+      on error
+        return "${STOPPED_OUTPUT}"
+      end try
 
       return normalizedState & "||" & trackName & "||" & trackArtist & "||" & trackAlbum & "||" & durationSec & "||" & playerPos
     else
-      return "stopped||||||||||"
+      return "${STOPPED_OUTPUT}"
     end if
   else
-    return "stopped||||||||||"
+    return "${STOPPED_OUTPUT}"
   end if
 end tell
 `;
+
+export const isStaleAppleMusicStateError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const stderr = 'stderr' in error && typeof error.stderr === 'string' ? error.stderr : '';
+  const message = `${error.message}\n${stderr}`;
+  return message.includes('current track') && message.includes('-1728');
+};
 
 export const parseMusicOutput = (raw: string): TrackInfo | null => {
   const [statusRaw = '', title = '', artist = '', album = '', durationRaw = '', positionRaw = ''] =
@@ -73,6 +88,14 @@ export const parseMusicOutput = (raw: string): TrackInfo | null => {
 };
 
 export const getCurrentTrack = async (): Promise<TrackInfo | null> => {
-  const { stdout } = await execFileAsync('osascript', ['-e', SCRIPT]);
-  return parseMusicOutput(stdout);
+  try {
+    const { stdout } = await execFileAsync('osascript', ['-e', SCRIPT]);
+    return parseMusicOutput(stdout);
+  } catch (error) {
+    if (isStaleAppleMusicStateError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
 };

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseMusicOutput } from '../../../src/integrations/apple-music/appleMusicClient.js';
+import {
+  isStaleAppleMusicStateError,
+  parseMusicOutput
+} from '../../../src/integrations/apple-music/appleMusicClient.js';
 
 describe('parseMusicOutput', () => {
   it('parses playing output', () => {
@@ -57,5 +60,23 @@ describe('parseMusicOutput', () => {
 
   it('returns null for non-normalized localized state', () => {
     expect(parseMusicOutput('dang phat||Song||Artist||Album||207||10')).toBeNull();
+  });
+});
+
+describe('isStaleAppleMusicStateError', () => {
+  it('detects stale current track AppleScript errors', () => {
+    const error = Object.assign(new Error('Command failed: osascript'), {
+      stderr: "299:303: execution error: Music got an error: Can't get name of current track. (-1728)\n"
+    });
+
+    expect(isStaleAppleMusicStateError(error)).toBe(true);
+  });
+
+  it('ignores unrelated AppleScript errors', () => {
+    const error = Object.assign(new Error('Command failed: osascript'), {
+      stderr: 'execution error: Not authorized to send Apple events. (-1743)\n'
+    });
+
+    expect(isStaleAppleMusicStateError(error)).toBe(false);
   });
 });
