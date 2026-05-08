@@ -48,7 +48,7 @@ MusicCord is a small local bridge between Apple Music and Discord. It polls the 
 For normal users, install and run MusicCord with Homebrew:
 
 ```bash
-brew tap hnatien/musiccord https://github.com/hnatien/MusicCord
+brew tap hnatien/musiccord
 brew install --HEAD musiccord
 brew services start musiccord
 ```
@@ -74,7 +74,7 @@ MusicCord ships with a default Discord application Client ID and fallback asset 
 Install:
 
 ```bash
-brew tap hnatien/musiccord https://github.com/hnatien/MusicCord
+brew tap hnatien/musiccord
 brew install --HEAD musiccord
 ```
 
@@ -94,10 +94,12 @@ Useful commands:
 | `tail -f "$(brew --prefix)/var/log/musiccord.log"` | View service logs. |
 | `brew upgrade --fetch-HEAD musiccord` | Update to the latest commit from the tap. |
 
-The explicit tap URL is used because this repository is named `MusicCord`. If a dedicated `hnatien/homebrew-musiccord` tap is created later, the install command can be shortened to:
+The tap lives in `hnatien/homebrew-musiccord`, which Homebrew resolves from `hnatien/musiccord`.
+
+You can also install with the fully qualified formula name:
 
 ```bash
-brew install hnatien/musiccord/musiccord
+brew install --HEAD hnatien/musiccord/musiccord
 ```
 
 ## Developer Run
