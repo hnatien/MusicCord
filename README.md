@@ -138,7 +138,7 @@ npm start
 | --- | --- | --- | --- |
 | `DISCORD_CLIENT_ID` | No | `1501873458127048745` | Discord application Client ID used for Rich Presence. Override only if you want to use your own Discord app. |
 | `POLL_INTERVAL_MS` | No | `15000` | Apple Music polling interval in milliseconds. |
-| `DISCORD_APPLE_MUSIC_ASSET_KEY` | No | `apple-music-svgrepo-com` | Fallback large image key from Discord Rich Presence assets. Use an empty value to disable fallback artwork. |
+| `DISCORD_APPLE_MUSIC_ASSET_KEY` | No | `apple-music-svgrepo-com` | Apple Music logo asset key from Discord Rich Presence assets. Used as the small logo with album artwork and as fallback large artwork. Use an empty value to disable the static asset. |
 | `ENABLE_DYNAMIC_ARTWORK` | No | `true` | Looks up album artwork through the iTunes Search API before falling back to the static asset. |
 
 ## Discord Asset Setup
@@ -149,8 +149,8 @@ Only do this if you want to use your own Discord application. Dynamic artwork us
 
 1. Open your app in the [Discord Developer Portal](https://discord.com/developers/applications).
 2. Select `Rich Presence`.
-3. Upload an Apple Music image under app assets.
-4. Set the asset key to `apple-music-svgrepo-com`, or match the value in `DISCORD_APPLE_MUSIC_ASSET_KEY`.
+3. Upload an Apple Music logo image under app assets.
+4. Set the asset key to `apple-music-svgrepo-com`, or match the value in `DISCORD_APPLE_MUSIC_ASSET_KEY`. MusicCord uses this as the small logo when album artwork is available.
 5. Keep `ENABLE_DYNAMIC_ARTWORK=true` if you want MusicCord to try iTunes artwork first.
 
 ## How It Works

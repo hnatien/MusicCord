@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildTrackActivity } from '../../../src/integrations/discord/discordPresenceClient.js';
+import {
+  buildTrackActivity,
+  buildTrackAssets
+} from '../../../src/integrations/discord/discordPresenceClient.js';
 import type { TrackInfo } from '../../../src/domain/music/types.js';
 
 describe('buildTrackActivity', () => {
@@ -84,5 +87,41 @@ describe('buildTrackActivity', () => {
     });
 
     vi.useRealTimers();
+  });
+});
+
+describe('buildTrackAssets', () => {
+  it('adds the Apple Music logo as the small activity image when album artwork is used', () => {
+    const track: TrackInfo = {
+      title: 'Song Name',
+      artist: 'Artist Name',
+      album: 'Album Name',
+      status: 'playing',
+      durationSeconds: 180,
+      positionSeconds: 30
+    };
+
+    expect(buildTrackAssets(track, 'https://example.com/artwork.jpg', 'apple-music-logo')).toEqual({
+      large_image: 'https://example.com/artwork.jpg',
+      large_text: 'Album Name',
+      small_image: 'apple-music-logo',
+      small_text: 'Apple Music'
+    });
+  });
+
+  it('does not duplicate the Apple Music logo when it is already the large image', () => {
+    const track: TrackInfo = {
+      title: 'Song Name',
+      artist: 'Artist Name',
+      album: 'Album Name',
+      status: 'playing',
+      durationSeconds: 180,
+      positionSeconds: 30
+    };
+
+    expect(buildTrackAssets(track, 'apple-music-logo', 'apple-music-logo')).toEqual({
+      large_image: 'apple-music-logo',
+      large_text: 'Album Name'
+    });
   });
 });

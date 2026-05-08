@@ -15,6 +15,8 @@ type RawActivity = Readonly<{
   assets?: Readonly<{
     large_image?: string;
     large_text?: string;
+    small_image?: string;
+    small_text?: string;
   }>;
   buttons?: ReadonlyArray<Readonly<{ label: string; url: string }>>;
   instance: boolean;
@@ -74,6 +76,25 @@ export const buildTrackActivity = (track: TrackInfo, appleMusicUrl?: string | nu
   };
 };
 
+export const buildTrackAssets = (
+  track: TrackInfo,
+  largeImage: string,
+  appleMusicAssetKey: string
+): NonNullable<RawActivity['assets']> => {
+  const smallImageKey = appleMusicAssetKey.trim();
+
+  return {
+    large_image: largeImage,
+    large_text: track.album || 'Apple Music',
+    ...(smallImageKey && smallImageKey !== largeImage
+      ? {
+          small_image: smallImageKey,
+          small_text: 'Apple Music'
+        }
+      : {})
+  };
+};
+
 export class DiscordPresenceClient {
   private readonly client: RPC.Client;
 
@@ -104,10 +125,7 @@ export class DiscordPresenceClient {
       try {
         await this.setRawActivity({
           ...baseActivity,
-          assets: {
-            large_image: artworkUrl,
-            large_text: track.album || 'Apple Music'
-          }
+          assets: buildTrackAssets(track, artworkUrl, this.appleMusicAssetKey)
         });
         return true;
       } catch (error) {
@@ -118,10 +136,7 @@ export class DiscordPresenceClient {
         const mediaProxyArtworkUrl = `mp:${artworkUrl}`;
         await this.setRawActivity({
           ...baseActivity,
-          assets: {
-            large_image: mediaProxyArtworkUrl,
-            large_text: track.album || 'Apple Music'
-          }
+          assets: buildTrackAssets(track, mediaProxyArtworkUrl, this.appleMusicAssetKey)
         });
         return true;
       } catch (error) {
@@ -134,10 +149,7 @@ export class DiscordPresenceClient {
       fallbackImageKey
         ? {
             ...baseActivity,
-            assets: {
-              large_image: fallbackImageKey,
-              large_text: track.album || 'Apple Music'
-            }
+            assets: buildTrackAssets(track, fallbackImageKey, this.appleMusicAssetKey)
           }
         : baseActivity
     );
