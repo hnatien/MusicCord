@@ -7,7 +7,7 @@ Bring Apple Music to Discord Rich Presence on macOS, with track metadata, album 
 <p>
   <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white">
-  <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20Music-000000?logo=apple&logoColor=white">
+  <img alt="macOS Apple Music" src="https://img.shields.io/badge/macOS-Apple%20Music-FA243C?logo=applemusic&logoColor=white">
   <img alt="Discord RPC" src="https://img.shields.io/badge/Discord-Rich%20Presence-5865F2?logo=discord&logoColor=white">
   <img alt="Tests" src="https://img.shields.io/badge/tests-vitest-6E9F18?logo=vitest&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-ISC-blue">
