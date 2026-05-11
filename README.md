@@ -3,6 +3,7 @@
 # MusicCord
 
 Bring Apple Music to Discord Rich Presence on macOS and Windows, with track metadata, album artwork, and playback progress.
+<img width="860" height="298" alt="image" src="https://github.com/user-attachments/assets/75c26d74-e736-482b-9070-a2c4b4e3ab00" />
 
 <p>
   <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white">
