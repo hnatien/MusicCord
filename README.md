@@ -2,7 +2,7 @@
 
 # MusicCord
 
-Bring Apple Music to Discord Rich Presence on macOS and Windows, with track metadata, album artwork, and playback progress that stays visible while music is paused.
+Bring Apple Music to Discord Rich Presence on macOS and Windows, with track metadata, album artwork, and playback progress.
 
 <p>
   <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white">
