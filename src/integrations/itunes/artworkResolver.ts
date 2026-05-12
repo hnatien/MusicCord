@@ -15,13 +15,16 @@ type CacheEntry =
   | Readonly<{
       kind: 'hit';
       metadata: TrackMetadata;
+      expiresAt: number;
     }>
   | Readonly<{
       kind: 'miss';
       expiresAt: number;
     }>;
 
-const MISS_TTL_MS = 5 * 60 * 1000;
+const MISS_TTL_MS = 60 * 1000;
+const HIT_TTL_MS = 24 * 60 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 3000;
 const cache = new Map<string, CacheEntry>();
 
 const buildCacheKey = (track: TrackInfo): string =>
@@ -33,7 +36,7 @@ const getCacheEntry = (cacheKey: string): CacheEntry | undefined => {
     return undefined;
   }
 
-  if (entry.kind === 'miss' && Date.now() >= entry.expiresAt) {
+  if (Date.now() >= entry.expiresAt) {
     cache.delete(cacheKey);
     return undefined;
   }
@@ -75,26 +78,36 @@ const toTrackMetadata = (track: ITunesTrack): TrackMetadata | null => {
   });
 };
 
-export const findTrackMetadata = async (track: TrackInfo): Promise<TrackMetadata> => {
+const EMPTY_METADATA: TrackMetadata = Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+
+type FindOptions = Readonly<{ bypassCache?: boolean }>;
+
+export const findTrackMetadata = async (
+  track: TrackInfo,
+  options: FindOptions = {}
+): Promise<TrackMetadata> => {
   const trackLabel = `${track.title} - ${track.artist}`;
   const cacheKey = buildCacheKey(track);
-  const cached = getCacheEntry(cacheKey);
-  if (cached?.kind === 'hit') {
-    return cached.metadata;
-  }
-  if (cached?.kind === 'miss') {
-    return Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+
+  if (!options.bypassCache) {
+    const cached = getCacheEntry(cacheKey);
+    if (cached?.kind === 'hit') {
+      return cached.metadata;
+    }
+    if (cached?.kind === 'miss') {
+      return EMPTY_METADATA;
+    }
   }
 
   const term = encodeURIComponent(`${track.title} ${track.artist}`);
   const endpoint = `https://itunes.apple.com/search?media=music&entity=song&limit=1&term=${term}`;
 
   try {
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!response.ok) {
       logger.warn('artwork', `Lookup failed (${response.status}): ${trackLabel}`);
       setMissCache(cacheKey);
-      return Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+      return EMPTY_METADATA;
     }
 
     const json = (await response.json()) as ITunesSearchResponse;
@@ -102,21 +115,22 @@ export const findTrackMetadata = async (track: TrackInfo): Promise<TrackMetadata
     if (!metadata) {
       logger.warn('artwork', `No track metadata in result: ${trackLabel}`);
       setMissCache(cacheKey);
-      return Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+      return EMPTY_METADATA;
     }
 
     cache.set(
       cacheKey,
       Object.freeze({
         kind: 'hit',
-        metadata
+        metadata,
+        expiresAt: Date.now() + HIT_TTL_MS
       })
     );
     return metadata;
   } catch (error) {
     logger.warn('artwork', `Lookup exception: ${trackLabel}`, error);
     setMissCache(cacheKey);
-    return Object.freeze({ artworkUrl: null, appleMusicUrl: null });
+    return EMPTY_METADATA;
   }
 };
 
@@ -128,5 +142,6 @@ export const findArtworkUrl = async (track: TrackInfo): Promise<string | null> =
 export const __testables__ = {
   cache,
   getCacheEntry,
-  MISS_TTL_MS
+  MISS_TTL_MS,
+  HIT_TTL_MS
 };

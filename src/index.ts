@@ -19,6 +19,7 @@ Environment overrides:
   POLL_INTERVAL_MS
   DISCORD_APPLE_MUSIC_ASSET_KEY
   ENABLE_DYNAMIC_ARTWORK
+  MUSICCORD_WINDOWS_HELPER   Path to a custom Windows media helper (.exe or .dll)
 `;
 
 const arg = process.argv[2];

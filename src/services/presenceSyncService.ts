@@ -6,12 +6,22 @@ import { logger } from '../utils/logger.js';
 import { DiscordUpdateThrottle } from './discordUpdateThrottle.js';
 import type { TrackInfo } from '../domain/music/types.js';
 
-const sleep = async (ms: number): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
+const sleep = async (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(new Error('aborted'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 
 const ARTWORK_RETRY_INTERVAL_MS = 60 * 1000;
+const POSITION_DRIFT_THRESHOLD_SECONDS = 3;
+const CONNECT_BACKOFF_MS = [3000, 6000, 12000, 30000] as const;
 
 type PresenceUpdate =
   | Readonly<{ kind: 'clear' }>
@@ -22,6 +32,27 @@ type PresenceUpdate =
       appleMusicUrl: string | null;
     }>;
 
+const connectWithBackoff = async (
+  presence: DiscordPresenceClient,
+  signal: AbortSignal
+): Promise<void> => {
+  let attempt = 0;
+  for (;;) {
+    if (signal.aborted) {
+      throw new Error('aborted');
+    }
+    try {
+      await presence.connect();
+      return;
+    } catch (error) {
+      const delay = CONNECT_BACKOFF_MS[Math.min(attempt, CONNECT_BACKOFF_MS.length - 1)];
+      logger.error('sync', `Discord IPC connect failed, retry in ${delay}ms`, error);
+      attempt += 1;
+      await sleep(delay, signal);
+    }
+  }
+};
+
 export const startPresenceSync = async (config: AppConfig): Promise<() => Promise<void>> => {
   const playback = createPlatformPlaybackClient();
   const presence = new DiscordPresenceClient(
@@ -29,17 +60,21 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
     config.DISCORD_APPLE_MUSIC_ASSET_KEY
   );
 
-  for (;;) {
-    try {
-      await presence.connect();
-      break;
-    } catch (error) {
-      logger.error('sync', 'Discord IPC connect failed, retry in 3s', error);
-      await sleep(3000);
-    }
+  const abortController = new AbortController();
+  try {
+    await connectWithBackoff(presence, abortController.signal);
+  } catch (error) {
+    presence.destroy();
+    throw error;
+  }
+
+  if (!config.ENABLE_DYNAMIC_ARTWORK) {
+    logger.info('artwork', 'Dynamic artwork disabled, using fallback Apple Music icon');
   }
 
   let lastKey = '';
+  let lastPosition = 0;
+  let lastPositionAt = 0;
   let usingDynamicArtwork = false;
   let lastArtworkRetryAt = 0;
 
@@ -47,6 +82,7 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
     send: async (update) => {
       if (update.kind === 'clear') {
         await presence.clear();
+        usingDynamicArtwork = false;
         logger.info('sync', 'Presence cleared');
         return;
       }
@@ -58,22 +94,19 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
       );
       usingDynamicArtwork = appliedDynamicArtwork;
 
-      if (appliedDynamicArtwork) {
-        logger.info(
-          'sync',
-          `Presence updated (dynamic): ${update.track.title} - ${update.track.artist}`
-        );
-      } else {
-        logger.info(
-          'sync',
-          `Presence updated (fallback): ${update.track.title} - ${update.track.artist}`
-        );
-      }
+      logger.info(
+        'sync',
+        `Presence updated (${appliedDynamicArtwork ? 'dynamic' : 'fallback'}): ${update.track.title} - ${update.track.artist}`
+      );
     },
     onError: (error) => {
       logger.error('sync', 'Discord presence update failed', error);
     }
   });
+
+  let tickInFlight = false;
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
 
   const tick = async (): Promise<void> => {
     try {
@@ -82,7 +115,8 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
         if (lastKey !== 'none') {
           updateThrottle.schedule({ kind: 'clear' });
           lastKey = 'none';
-          usingDynamicArtwork = false;
+          lastPosition = 0;
+          lastPositionAt = 0;
           lastArtworkRetryAt = 0;
         }
         return;
@@ -91,48 +125,82 @@ export const startPresenceSync = async (config: AppConfig): Promise<() => Promis
       const now = Date.now();
       const currentKey = `${track.title}|${track.artist}|${track.album}|${track.status}|${track.durationSeconds}`;
       const trackChanged = currentKey !== lastKey;
+      const elapsedSinceLastSample = lastPositionAt > 0 ? (now - lastPositionAt) / 1000 : 0;
+      const expectedPosition = lastPosition + elapsedSinceLastSample;
+      const positionDrifted =
+        !trackChanged &&
+        track.status === 'playing' &&
+        lastPositionAt > 0 &&
+        Math.abs(track.positionSeconds - expectedPosition) > POSITION_DRIFT_THRESHOLD_SECONDS;
       const shouldRetryArtwork =
         config.ENABLE_DYNAMIC_ARTWORK &&
         !trackChanged &&
         !usingDynamicArtwork &&
         now - lastArtworkRetryAt >= ARTWORK_RETRY_INTERVAL_MS;
 
-      if (trackChanged || shouldRetryArtwork) {
+      if (trackChanged || shouldRetryArtwork || positionDrifted) {
         if (shouldRetryArtwork) {
           lastArtworkRetryAt = now;
           logger.info('artwork', `Retry lookup: ${track.title} - ${track.artist}`);
         }
 
-        if (!config.ENABLE_DYNAMIC_ARTWORK) {
-          logger.info('artwork', 'Dynamic artwork disabled, use fallback');
-        }
         const metadata = config.ENABLE_DYNAMIC_ARTWORK
-          ? await findTrackMetadata(track)
+          ? await findTrackMetadata(track, { bypassCache: shouldRetryArtwork })
           : Object.freeze({ artworkUrl: null, appleMusicUrl: null });
-        const artworkUrl = metadata.artworkUrl;
         updateThrottle.schedule({
           kind: 'track',
           track,
-          artworkUrl,
+          artworkUrl: metadata.artworkUrl,
           appleMusicUrl: metadata.appleMusicUrl
         });
-        usingDynamicArtwork = Boolean(artworkUrl);
         lastKey = currentKey;
+        lastPosition = track.positionSeconds;
+        lastPositionAt = now;
       }
     } catch (error) {
       logger.error('sync', 'Tick failed', error);
     }
   };
 
-  await tick();
-  const timer = setInterval(() => {
-    void tick();
-  }, config.POLL_INTERVAL_MS);
+  const scheduleNextTick = (): void => {
+    if (stopped) {
+      return;
+    }
+    pollTimer = setTimeout(() => {
+      pollTimer = null;
+      void runTick();
+    }, config.POLL_INTERVAL_MS);
+  };
+
+  const runTick = async (): Promise<void> => {
+    if (tickInFlight) {
+      scheduleNextTick();
+      return;
+    }
+    tickInFlight = true;
+    try {
+      await tick();
+    } finally {
+      tickInFlight = false;
+      scheduleNextTick();
+    }
+  };
+
+  await runTick();
 
   return async () => {
-    clearInterval(timer);
+    stopped = true;
+    abortController.abort();
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
     updateThrottle.stop();
-    await presence.clear();
+    try {
+      await presence.clear();
+    } catch (error) {
+      logger.warn('sync', 'Failed to clear presence on shutdown', error);
+    }
     presence.destroy();
   };
 };

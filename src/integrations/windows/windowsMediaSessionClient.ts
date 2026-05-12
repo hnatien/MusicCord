@@ -40,9 +40,14 @@ const PUBLISHED_HELPER_DLL_ASSET_PATH =
   'assets/windows-media-helper/publish/MusicCord.WindowsMedia.dll';
 const PUBLISHED_HELPER_EXE_ASSET_PATH =
   'assets/windows-media-helper/publish/MusicCord.WindowsMedia.exe';
+const HELPER_REQUEST_TIMEOUT_MS = 5000;
+const HELPER_STDERR_MAX_BYTES = 16 * 1024;
 
 export const isAppleMusicSourceAppId = (sourceAppUserModelId?: string | null): boolean => {
   const normalized = sourceAppUserModelId?.toLowerCase() ?? '';
+  if (!normalized) {
+    return false;
+  }
   return APPLE_MUSIC_SOURCE_PATTERNS.some((pattern) => normalized.includes(pattern));
 };
 
@@ -136,6 +141,11 @@ export const normalizeHelperTrack = (response: WindowsHelperTrackResponse): Trac
   });
 };
 
+export const isJsonLine = (raw: string): boolean => {
+  const trimmed = raw.trimStart();
+  return trimmed.startsWith('{') || trimmed.startsWith('[');
+};
+
 export const parseHelperResponse = (raw: string): WindowsHelperResponse => {
   const parsed = JSON.parse(raw) as Partial<WindowsHelperResponse>;
 
@@ -226,6 +236,7 @@ class WindowsMediaHelperProcess {
   private child: ChildProcessWithoutNullStreams | null = null;
   private lines: Interface | null = null;
   private pending: PendingRequest | null = null;
+  private pendingTimer: NodeJS.Timeout | null = null;
   private stderr = '';
 
   public async request(): Promise<WindowsHelperResponse> {
@@ -236,6 +247,13 @@ class WindowsMediaHelperProcess {
     const child = this.ensureStarted();
     return new Promise((resolve, reject) => {
       this.pending = Object.freeze({ resolve, reject });
+      this.pendingTimer = setTimeout(() => {
+        this.rejectPending(
+          new Error(`Windows media helper timed out after ${HELPER_REQUEST_TIMEOUT_MS}ms`)
+        );
+        this.stop();
+      }, HELPER_REQUEST_TIMEOUT_MS);
+
       child.stdin.write('get\n', (error) => {
         if (!error) {
           return;
@@ -262,6 +280,10 @@ class WindowsMediaHelperProcess {
     this.lines = createInterface({ input: child.stdout });
 
     this.lines.on('line', (line) => {
+      if (!isJsonLine(line)) {
+        return;
+      }
+
       try {
         this.resolvePending(parseHelperResponse(line));
       } catch (error) {
@@ -270,7 +292,11 @@ class WindowsMediaHelperProcess {
     });
 
     child.stderr.on('data', (chunk: Buffer) => {
-      this.stderr += chunk.toString();
+      if (this.stderr.length >= HELPER_STDERR_MAX_BYTES) {
+        return;
+      }
+      const remaining = HELPER_STDERR_MAX_BYTES - this.stderr.length;
+      this.stderr += chunk.toString().slice(0, remaining);
     });
 
     child.once('error', (error) => {
@@ -287,19 +313,29 @@ class WindowsMediaHelperProcess {
     return child;
   }
 
+  private clearPendingTimer(): void {
+    if (this.pendingTimer) {
+      clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+  }
+
   private resolvePending(response: WindowsHelperResponse): void {
     const pending = this.pending;
     this.pending = null;
+    this.clearPendingTimer();
     pending?.resolve(response);
   }
 
   private rejectPending(error: unknown): void {
     const pending = this.pending;
     this.pending = null;
+    this.clearPendingTimer();
     pending?.reject(error);
   }
 
   public stop(): void {
+    this.clearPendingTimer();
     this.lines?.close();
     this.lines = null;
 
@@ -307,6 +343,7 @@ class WindowsMediaHelperProcess {
       this.child.kill();
       this.child = null;
     }
+    this.stderr = '';
   }
 }
 
@@ -326,10 +363,7 @@ export const createWindowsMediaSessionClient = (): MusicPlaybackClient => {
           throw new Error(response.message);
         }
 
-        if (
-          response.sourceAppUserModelId &&
-          !isAppleMusicSourceAppId(response.sourceAppUserModelId)
-        ) {
+        if (!isAppleMusicSourceAppId(response.sourceAppUserModelId)) {
           return null;
         }
 

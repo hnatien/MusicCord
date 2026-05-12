@@ -87,9 +87,13 @@ export const parseMusicOutput = (raw: string): TrackInfo | null => {
   });
 };
 
+const OSASCRIPT_TIMEOUT_MS = 4000;
+
 export const getCurrentTrack = async (): Promise<TrackInfo | null> => {
   try {
-    const { stdout } = await execFileAsync('osascript', ['-e', SCRIPT]);
+    const { stdout } = await execFileAsync('osascript', ['-e', SCRIPT], {
+      timeout: OSASCRIPT_TIMEOUT_MS
+    });
     return parseMusicOutput(stdout);
   } catch (error) {
     if (isStaleAppleMusicStateError(error)) {

@@ -149,6 +149,7 @@ const startTrayPresence = async (): Promise<void> => {
     const config = loadConfig();
     stopPresenceSync = await startPresenceSync(config);
     lastStatus = 'Running';
+    showStartedNotification();
   } catch (error) {
     logger.error('tray', 'Failed to start presence sync', error);
     stopPresenceSync = null;
@@ -231,7 +232,6 @@ const initializeTray = (): void => {
   tray = new Tray(createTrayIcon());
   writeTrayLog('Tray instance created');
   refreshMenu();
-  showStartedNotification();
   void startTrayPresence();
 };
 

@@ -25,11 +25,12 @@ type RawActivity = Readonly<{
 const normalizeDiscordText = (value: string, fallback: string): string => {
   const trimmed = value.trim();
   const safeValue = trimmed || fallback;
-  return safeValue.length >= 2 ? safeValue : `${safeValue} `;
+  return safeValue.length >= 2 ? safeValue : `${safeValue}​`;
 };
 
 const buildAppleMusicSearchUrl = (track: TrackInfo): string => {
-  const term = encodeURIComponent(`${track.title} ${track.artist}`);
+  const parts = [track.title, track.artist, track.album].filter((part) => part.trim().length > 0);
+  const term = encodeURIComponent(parts.join(' '));
   return `https://music.apple.com/search?term=${term}`;
 };
 
@@ -52,7 +53,7 @@ const resolveAppleMusicUrl = (track: TrackInfo, appleMusicUrl?: string | null): 
 
 const buildTrackDetails = (track: TrackInfo): string => {
   const titleLine = normalizeDiscordText(track.title, 'Unknown Track');
-  return track.status === 'paused' ? `[pause] ${titleLine}` : titleLine;
+  return track.status === 'paused' ? `⏸ ${titleLine}` : titleLine;
 };
 
 export const buildTrackActivity = (track: TrackInfo, appleMusicUrl?: string | null): RawActivity => {
@@ -111,8 +112,14 @@ export class DiscordPresenceClient {
 
   public connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.client.once('ready', () => resolve());
-      this.client.login({ clientId: this.clientId }).catch(reject);
+      const onReady = (): void => {
+        resolve();
+      };
+      this.client.once('ready', onReady);
+      this.client.login({ clientId: this.clientId }).catch((error: unknown) => {
+        this.client.removeListener('ready', onReady);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      });
     });
   }
 

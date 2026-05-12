@@ -25,7 +25,7 @@ describe('buildTrackActivity', () => {
       buttons: [
         {
           label: 'Play on Apple Music',
-          url: 'https://music.apple.com/search?term=Song%20Name%20Artist%20Name'
+          url: 'https://music.apple.com/search?term=Song%20Name%20Artist%20Name%20Album%20Name'
         }
       ],
       instance: false
@@ -63,7 +63,7 @@ describe('buildTrackActivity', () => {
     };
 
     expect(buildTrackActivity(track)).toMatchObject({
-      details: '瞬 ',
+      details: '瞬​',
       state: 'by Zheng Runze'
     });
   });
@@ -100,7 +100,7 @@ describe('buildTrackActivity', () => {
     };
 
     expect(buildTrackActivity(track)).toMatchObject({
-      details: '[pause] Song Name',
+      details: '⏸ Song Name',
       state: 'by Artist Name'
     });
     expect(buildTrackActivity(track)).not.toHaveProperty('timestamps');

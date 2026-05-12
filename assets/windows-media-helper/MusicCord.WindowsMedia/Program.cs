@@ -65,6 +65,9 @@ namespace MusicCordWindowsMedia
                 }
 
                 var timeline = session.GetTimelineProperties();
+                var sourceAppUserModelId = string.IsNullOrWhiteSpace(session.SourceAppUserModelId)
+                    ? null
+                    : session.SourceAppUserModelId;
                 WriteResponse(new TrackResponse(
                     Title: mediaProperties.Title.Trim(),
                     Artist: string.IsNullOrWhiteSpace(mediaProperties.Artist)
@@ -74,7 +77,7 @@ namespace MusicCordWindowsMedia
                     Status: status,
                     DurationSeconds: Math.Max(0, (timeline.EndTime - timeline.StartTime).TotalSeconds),
                     PositionSeconds: Math.Max(0, timeline.Position.TotalSeconds),
-                    SourceAppUserModelId: session.SourceAppUserModelId
+                    SourceAppUserModelId: sourceAppUserModelId
                 ));
             }
             catch (Exception error)
@@ -132,7 +135,7 @@ namespace MusicCordWindowsMedia
         string Status,
         double DurationSeconds,
         double PositionSeconds,
-        string SourceAppUserModelId) : HelperResponse("track");
+        string? SourceAppUserModelId) : HelperResponse("track");
 
     internal sealed record ErrorResponse(string Message) : HelperResponse("error");
 }
